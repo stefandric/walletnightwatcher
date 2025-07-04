@@ -20,6 +20,17 @@ from summary import WalletSummaryFormatter
 from dotenv import load_dotenv
 import os
 from security_scanner import SecurityScanner
+from telegram.helpers import escape_markdown
+
+CHAIN_ID_MAP = {
+    "eth": "1", "ethereum": "1",
+    "bsc": "56", "binance": "56",
+    "polygon": "137", "matic": "137",
+    "fantom": "250", "ftm": "250",
+    "avax": "43114", "avalanche": "43114",
+    "arbitrum": "42161", "optimism": "10",
+    "sol": "101", "solana": "101"
+}
 
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -61,6 +72,7 @@ class NightWatcherBot:
             "👋 Welcome to NightWatcher!\n"
             "Use /add <ETH_ADDRESS> to track a wallet.\n"
             "Use /list to view tracked wallets.\n"
+            "Use /check <ADDRESS> chain to make sure that the address is safe"
             "Use /stop to delete all tracked wallets."
         )
 
@@ -198,30 +210,48 @@ class NightWatcherBot:
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Usage: /check <wallet_address>")
+        await update.message.reply_text("Usage: /check <wallet_address> <chain>")
         return
 
     address = context.args[0]
-    scanner = SecurityScanner()
+    chain = context.args[1].lower() if len(context.args) > 1 else "eth"
+    chain_id = CHAIN_ID_MAP.get(chain)
+
+    if not chain_id:
+        await update.message.reply_text(f"❌ Unknown chain: `{chain}`", parse_mode="MarkdownV2")
+        return
+
+    scanner = SecurityScanner(chain_id=chain_id)
     result = scanner.check_address(address)
 
     if not result["success"]:
         await update.message.reply_text(f"❌ Error: {result['error']}")
         return
 
-    reports = result["data"]
-    count = reports.get("count", 0)
+    data = result["data"]
+    flagged = data.get("is_sanctioned", False)
+    flags = data.get("flags", [])
 
-    if count == 0:
-        await update.message.reply_text("✅ This address has no known scam reports.")
+    if not flagged:
+        await update.message.reply_text(
+            f"✅ `{escape_markdown(address, version=2)}` appears safe",
+            parse_mode="MarkdownV2"
+        )
         return
 
-    message = [f"⚠️ *{count} report(s)* found for `{address}`:\n"]
+    reason_text = ""
+    if flags:
+        escaped_flags = "\n• " + "\n• ".join(
+            escape_markdown(flag, version=2) for flag in flags
+        )
+        reason_text = f"\n⚠️ *Reasons flagged:*\n{escaped_flags}"
 
-    for r in reports.get("reports", []):
-        cat = r.get("scamCategory", "Unknown")
-        date = r.get("createdAt", "Unknown")[:10]
-        domain = next((a.get("domain") for a in r.get("addresses", []) if a.get("domain")), None)
-        message.append(f"• {cat} ({date})" + (f" — {domain}" if domain else ""))
+    message = [
+        f"⚠️ *Suspicious activity detected* for `{escape_markdown(address, version=2)}`{reason_text}"
+    ]
 
-    await update.message.reply_text("\n".join(message), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(message), parse_mode="MarkdownV2")
+
+
+
+    
