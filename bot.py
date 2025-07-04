@@ -19,6 +19,7 @@ from scan import WalletScanner
 from summary import WalletSummaryFormatter
 from dotenv import load_dotenv
 import os
+from security_scanner import SecurityScanner
 
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -36,6 +37,7 @@ class NightWatcherBot:
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.unknown_input)
         )
         self.app.add_handler(CommandHandler("scan", self.scan_wallet))
+        self.app.add_handler(CommandHandler("check", check_command))
 
     async def scan_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(context.args) != 2:
@@ -191,3 +193,35 @@ class NightWatcherBot:
         asyncio.create_task(self.balance_watcher())
         print("✅ Bot is running...")
         await self.app.run_polling()
+
+
+
+async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Usage: /check <wallet_address>")
+        return
+
+    address = context.args[0]
+    scanner = SecurityScanner()
+    result = scanner.check_address(address)
+
+    if not result["success"]:
+        await update.message.reply_text(f"❌ Error: {result['error']}")
+        return
+
+    reports = result["data"]
+    count = reports.get("count", 0)
+
+    if count == 0:
+        await update.message.reply_text("✅ This address has no known scam reports.")
+        return
+
+    message = [f"⚠️ *{count} report(s)* found for `{address}`:\n"]
+
+    for r in reports.get("reports", []):
+        cat = r.get("scamCategory", "Unknown")
+        date = r.get("createdAt", "Unknown")[:10]
+        domain = next((a.get("domain") for a in r.get("addresses", []) if a.get("domain")), None)
+        message.append(f"• {cat} ({date})" + (f" — {domain}" if domain else ""))
+
+    await update.message.reply_text("\n".join(message), parse_mode="Markdown")
