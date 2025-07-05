@@ -32,7 +32,6 @@ CHAIN_ID_MAP = {
     "sol": "101", "solana": "101"
 }
 
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ETHERSCAN_API_KEY = os.getenv("DB_URL", "sqlite:///default.db")  # optional default
 
@@ -70,10 +69,11 @@ class NightWatcherBot:
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "👋 Welcome to NightWatcher!\n"
-            "Use /add <ETH_ADDRESS> to track a wallet.\n"
-            "Use /list to view tracked wallets.\n"
+            # "Use /add <ETH_ADDRESS> to track a wallet.\n"
+            # "Use /list to view tracked wallets.\n"
+            "Use /scan <ADDRESS> chain to get all info about the wallet"
             "Use /check <ADDRESS> chain to make sure that the address is safe"
-            "Use /stop to delete all tracked wallets."
+            # "Use /stop to delete all tracked wallets."
         )
 
     async def add_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
