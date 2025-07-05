@@ -5,6 +5,8 @@ import requests
 from dotenv import load_dotenv
 import os
 
+load_dotenv()
+
 MORALIS_API_KEY = os.getenv("MORALIS_API_KEY")
 
 class WalletScanner:

@@ -32,6 +32,8 @@ CHAIN_ID_MAP = {
     "sol": "101", "solana": "101"
 }
 
+load_dotenv()
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ETHERSCAN_API_KEY = os.getenv("DB_URL", "sqlite:///default.db")  # optional default
 
